@@ -170,20 +170,31 @@ const generateReport = async () => {
   const sinceDate = moment(reportDate.value).format('YYYY-MM-DD')
   const untilDate = moment(reportDate.value).add(1, 'days').format('YYYY-MM-DD')
   try {
-    const res = await axios.get('http://localhost:3000/api/git/logs', {
-      params: {
-        author: '吴峻森',
-        since: sinceDate,
-        until: untilDate
-      }
+    const res = await window.api.getGitLogs({
+      author: '吴峻森',
+      since: sinceDate,
+      until: untilDate
     });
 
-    console.log('Git 日志数据：', res.data);
+    console.log('Git 日志数据：', res);
 
-    const completedLogs = res.data
-      .filter((log: any) => !log.message.startsWith('Merge')) // 过滤 Merge 提交
-      .map((log: any) => {
-        return `【${moment(log.date).format('YYYY-MM-DD')}】${log.message} —— ${log.author_name}`
+    const completedLogs = res
+      .filter(log => !log.message.startsWith('Merge'))  // 过滤掉 Merge 提交
+      .map(log => {
+        // 去掉所有英文字母和左右括号（包括括号里的内容）
+        // 先删除所有英文字符和括号
+        // 如果只想去掉括号和括号内内容，可以用 /\([^)]*\)/g
+        // 这里分两步做：
+
+        // 1. 删除括号及里面内容
+        let filteredMessage = log.message.replace(/\([^)]*\)/g, '');
+        // 2. 删除剩余的所有英文字母
+        filteredMessage = filteredMessage.replace(/[a-zA-Z]/g, '');
+
+        // 去掉多余空格
+        filteredMessage = filteredMessage.trim();
+
+        return `【${moment(log.date).format('YYYY-MM-DD')}】${filteredMessage}`;
       });
     currentReport.value = {
       completed: completedLogs,
