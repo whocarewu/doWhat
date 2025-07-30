@@ -1,10 +1,12 @@
 
-# 🚀 DoWhat - 日报生成器
+# 🚀 DoWhat - 智能日报生成器（Electron 版）
 
-> 一款基于 Vue 3  + Element Plus 构建的智能日报生成器，结合 Git 提交记录快速生成个人或团队日报，提升工作效率。
+> 一款基于 Vue 3 + Element Plus 构建的智能日报生成器，结合 Git 提交记录快速生成个人或团队日报，  
+> 通过 Electron 打包为跨平台桌面应用，提升工作效率与使用体验。
 
 ![Vue 3](https://img.shields.io/badge/Vue-3.x-42b883?logo=vue.js)
 ![Element Plus](https://img.shields.io/badge/Element--Plus-2.x-blue?logo=element)
+![Electron](https://img.shields.io/badge/Electron-23.x-blueviolet?logo=electron)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ---
@@ -25,23 +27,26 @@
 
 ## ✨ 项目特点
 
-- 🔍 **自动生成日报**：根据 Git 提交日志智能提取每日完成项
-- 📅 **灵活选择时间范围**：支持生成日报、周报、月报
-- 🎨 **现代化 UI**：Element Plus + CSS 动画 + 响应式设计
-- 🧠 **交互友好**：复制、下载、编辑一应俱全
-- 🛠️ **轻量依赖**：整洁高效的技术栈，便于拓展
+- 🔍 **自动生成日报**：根据 Git 提交日志智能提取每日完成项  
+- 📅 **灵活选择时间范围**：支持日报、周报、月报  
+- 🖥️ **Electron 桌面应用**：跨平台运行，支持 Windows/macOS/Linux  
+- 🔐 **安全 IPC 通信**：主进程负责读取 Git 数据，渲染进程安全调用  
+- 🎨 **现代化 UI**：Element Plus + CSS 动画 + 响应式设计  
+- 🧠 **交互友好**：复制、下载、编辑等实用操作  
+- 🛠️ **轻量依赖**：整洁高效的技术栈，易于维护与扩展  
 
 ---
 
 ## 📦 技术栈
 
-- **前端框架**：Vue 3 + `<script setup>` + TypeScript
-- **组件库**：Element Plus
-- **样式处理**：SCSS + 响应式布局
-- **动画支持**：CSS 动画、Lottie
-- **数据处理**：Axios、Moment.js
-- **状态管理**：Pinia
-- **后端接口**：simple-git + Node.js + Express
+- **前端框架**：Vue 3 + `<script setup>` + TypeScript  
+- **组件库**：Element Plus  
+- **桌面框架**：Electron  
+- **Git 交互**：simple-git（Node.js 库，读取本地 Git 日志）  
+- **状态管理**：Pinia  
+- **数据请求**：Axios  
+- **日期处理**：Moment.js  
+- **构建工具**：Vite  
 
 ---
 
@@ -49,6 +54,9 @@
 
 ```
 doWhat/
+├── electron/             # Electron 主进程代码及 preload 脚本
+│   ├── main.cjs          # 主进程入口文件，负责创建窗口及处理 Git 请求
+│   └── preload.js        # 预加载脚本，暴露安全的 IPC 接口给渲染进程
 ├── public/               # 静态资源
 ├── src/
 │   ├── assets/           # 项目资源
@@ -57,7 +65,7 @@ doWhat/
 │   ├── store/            # Pinia 状态管理
 │   ├── App.vue           # 根组件
 │   └── main.ts           # 入口文件
-├── server.js             # Node 服务端（提供 Git 日志接口）
+├── server.js             # （可选）独立 Node.js 服务端（不使用 Electron 时）
 ├── index.html
 ├── package.json
 └── README.md
@@ -80,59 +88,61 @@ cd doWhat
 npm install
 ```
 
-### 3. 启动前端项目
+### 3. 启动开发环境
+
+- **启动前端开发服务器：**
 
 ```bash
 npm run dev
 ```
 
-### 4. 启动后端服务（Node）
+- **启动 Electron 应用（开发模式）：**
 
 ```bash
-node server.js
+npm run electron:dev
 ```
 
-确保你已经安装了 [Git](https://git-scm.com/) 并配置好了本地仓库路径。
+> 该命令会并行启动前端开发服务器和 Electron，方便调试。
+
+### 4. 生成生产包（可选）
+
+```bash
+npm run build
+# 然后根据你的打包配置启动 Electron
+```
 
 ---
 
-## 🧩 后端 API 示例
+## 🧩 后端 API 示例（Electron IPC）
 
-**接口地址**：
+- 主进程通过 Electron IPC 监听渲染进程请求，安全调用 `simple-git` 获取多仓库日志  
+- 渲染进程调用示例：
 
-```
-GET http://localhost:3000/api/git/logs
-```
-
-**请求参数**：
-
-| 参数     | 类型   | 说明               |
-|----------|--------|--------------------|
-| author   | string | Git 提交者         |
-| since    | string | 起始日期 (YYYY-MM-DD) |
-| until    | string | 截止日期           |
-
-**示例请求**：
-
-```
-GET /api/git/logs?author=whocarewu&since=2025-07-29&until=2025-07-30
+```ts
+const logs = await window.electronAPI.getGitLogs({
+  author: 'your-name',
+  since: '2025-07-01',
+  until: '2025-07-30'
+});
 ```
 
 ---
 
 ## 📸 截图预览
 
+*此处插入项目界面截图，突出日报生成和 Electron 桌面窗口效果*
 
 ---
 
 ## 📌 TODO
 
-- [x] 基础日报生成
-- [x] Git 日志接口接入
-- [ ] 支持多部门切换
-- [ ] 支持导出 PDF
-- [ ] 可视化图表（工作量分布）
-- [ ] 接入 AI 自动总结
+- [x] 基础日报生成功能  
+- [x] 多仓库 Git 日志支持  
+- [x] Electron 主进程安全桥接 IPC  
+- [ ] 多部门切换与管理  
+- [ ] PDF 导出功能  
+- [ ] 图表可视化工作量分布  
+- [ ] AI 自动总结增强  
 
 ---
 
@@ -146,8 +156,8 @@ GET /api/git/logs?author=whocarewu&since=2025-07-29&until=2025-07-30
 
 如果你觉得这个项目有帮助，欢迎点 Star ⭐ 或联系我：
 
-- 博客：[https://blog.whocarewu.cn/](https://blog.whocarewu.cn/)
-- 邮箱：1324940338@qq.com
+- 博客：[https://blog.whocarewu.cn/](https://blog.whocarewu.cn/)  
+- 邮箱：1324940338@qq.com  
 - GitHub: [https://github.com/whocarewu](https://github.com/whocarewu)
 
 ---
