@@ -5,6 +5,7 @@ const simpleGit = require('simple-git');
 const StoreModule = require('electron-store');
 const Store = StoreModule.default || StoreModule;
 const store = new Store();
+const isDev = !app.isPackaged;  // Electron 官方推荐的方式
 function createWindow() {
   const win = new BrowserWindow({
     width: 1000,
@@ -17,9 +18,14 @@ function createWindow() {
   });
 
   // 开发环境加载 vite 开发服务器地址
-  win.loadURL('http://localhost:5213');
+  if (isDev) {
+    win.loadURL('http://localhost:5213');
+    win.webContents.openDevTools();
+  } else {
+    win.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
   // ✅ 自动打开开发者工具
-  win.webContents.openDevTools(); // 可以加 { mode: 'detach' } 参数让它浮动显示
+  // win.webContents.openDevTools(); // 可以加 { mode: 'detach' } 参数让它浮动显示
 }
 
 app.whenReady().then(createWindow);
