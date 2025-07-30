@@ -15,8 +15,13 @@
     <main class="main-content">
       <!-- 控制面板 -->
       <div class="control-panel">
-        <div class="panel-header">
+        <div class="panel-header" style="display: flex; justify-content:space-between; align-items: center;">
           <h2><i class="fas fa-cog"></i> 生成设置</h2>
+          <button class="generate-btn-round" @click="showRepoDialog = true">
+            <span>
+              <i class="fas fa-plus" style="color: white;"></i>
+            </span>
+          </button>
         </div>
 
         <div class="form-group">
@@ -106,7 +111,54 @@
         </div>
       </div>
     </main>
+    <!-- 弹窗遮罩 -->
+    <transition name="fade">
+      <div v-if="showRepoDialog" class="dialog-mask" @click.self="showRepoDialog = false">
+        <div class="dialog-card">
+          <header class="dialog-header">
+            <h3>添加 Git 仓库</h3>
+            <button class="close-btn" @click="showRepoDialog = false">&times;</button>
+          </header>
+          <div class="dialog-form">
+            <label for="repo-name-label" style="font-weight: 600; margin-bottom: 6px; display: block;">用户名
+              <input type="text" v-model="author" placeholder="请输入git开发名称" required />
+            </label>
+          </div>
+          <form @submit.prevent="addRepos" class="dialog-form">
+            <div v-for="(repo, index) in repoList" :key="index" class="repo-item">
+              <label class="repo-name-label">
+                <div style="display: flex; justify-content: space-between;">
+                  <div>名称</div>
+                  <button v-if="repoList.length > 1" type="button" class="btn-secondary small-btn inline-remove-btn"
+                    @click="removeRepo(index)" title="删除仓库">
+                    删除
+                  </button>
+                </div>
 
+                <input type="text" v-model="repo.name" placeholder="如：项目名称" required />
+
+              </label>
+
+              <label>
+                路径
+                <input type="text" v-model="repo.path" placeholder="如：D:/Code/xx-xx" required />
+              </label>
+
+              <hr v-if="index !== repoList.length - 1" />
+            </div>
+
+            <button type="button" class="btn-primary add-btn" @click="addNewRepo">
+              <i class="fas fa-plus"></i> 添加仓库
+            </button>
+
+            <footer class="dialog-footer">
+              <button type="button" @click="showRepoDialog = false" class="btn-secondary">取消</button>
+              <button type="submit" class="btn-primary">确认</button>
+            </footer>
+          </form>
+        </div>
+      </div>
+    </transition>
     <!-- Toast 提示 -->
     <div v-if="toastMessage" class="toast">
       {{ toastMessage }}
@@ -119,6 +171,25 @@ import { ref, computed, onMounted, watch } from 'vue'
 import moment from 'moment';
 import { ElMessage } from 'element-plus'
 import axios from 'axios';
+// 生命周期
+onMounted(async () => {
+  // 设置默认日期为今天
+  const today = new Date().toISOString().split('T')[0]
+  reportDate.value = today
+  try {
+    const reposRaw = await window.electronStore.get('repos');
+    const authorRaw = await window.electronStore.get('author');
+
+    // electron-store 自动帮你序列化和反序列化，直接用就好
+    repoList.value = Array.isArray(reposRaw) ? reposRaw : [{ name: '', path: '' }];
+    author.value = typeof authorRaw === 'string' ? authorRaw : '';
+
+  } catch (e) {
+    console.error('读取本地缓存失败:', e);
+    ElMessage.info('未配置基础数据');
+  }
+})
+
 // 响应式数据
 const reportDate = ref('')
 const reportType = ref('daily')
@@ -133,10 +204,14 @@ const currentReport = ref({
   issues: [] as string[],
   suggestions: [] as string[]
 })
-
+const showRepoDialog = ref(false)
+const repoList = ref<{ name: string; path: string }[]>([
+  { name: '', path: '' }
+])
+const author = ref('')
 // 部门名称映射
 const departmentNames: Record<string, string> = {
-  tech: '开发',
+  tech: '抓到一个牛马🐂🐎',
 }
 
 // 报告类型名称映射
@@ -167,13 +242,15 @@ const formattedDate = computed(() => {
 const generateReport = async () => {
   isLoading.value = true;
   showUpdateHint.value = false;
-  const sinceDate = moment(reportDate.value).format('YYYY-MM-DD')
-  const untilDate = moment(reportDate.value).add(1, 'days').format('YYYY-MM-DD')
+  const sinceDate = moment(reportDate.value).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+  const untilDate = moment(reportDate.value).add(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
+  const plainRepoList = JSON.parse(JSON.stringify(repoList.value));
   try {
     const res = await window.api.getGitLogs({
-      author: '吴峻森',
+      author: author.value,
       since: sinceDate,
-      until: untilDate
+      until: untilDate,
+      repoPaths: plainRepoList
     });
 
     console.log('Git 日志数据：', res);
@@ -194,7 +271,7 @@ const generateReport = async () => {
         // 去掉多余空格
         filteredMessage = filteredMessage.trim();
 
-        return `【${moment(log.date).format('YYYY-MM-DD')}】${filteredMessage}`;
+        return `[${moment(log.date).format('YYYY-MM-DD')}]-${log.repo}-${filteredMessage}`;
       });
     currentReport.value = {
       completed: completedLogs,
@@ -257,12 +334,46 @@ const showToast = (message: string) => {
   }, 2000)
 }
 
-// 生命周期
-onMounted(() => {
-  // 设置默认日期为今天
-  const today = new Date().toISOString().split('T')[0]
-  reportDate.value = today
-})
+
+// 新增一个空仓库项
+const addNewRepo = () => {
+  repoList.value.push({ name: '', path: '' })
+}
+
+// 删除指定索引仓库项
+const removeRepo = (index: number) => {
+  repoList.value.splice(index, 1)
+}
+
+// 提交所有仓库
+const addRepos = async () => {
+  // 校验是否所有条目都填写完整
+  for (const repo of repoList.value) {
+    if (!repo.name.trim() || !repo.path.trim()) {
+      ElMessage.warning('请填写所有仓库的名称和路径')
+      return
+    }
+  }
+  // 处理路径，把所有 \ 替换成 /
+  const normalizedRepos = repoList.value.map(repo => ({
+    name: repo.name.trim(),
+    path: repo.path.replace(/\\/g, '/').trim()
+  }))
+  // 保存到本地缓存（Electron Store）
+  try {
+    await window.electronStore.set('repos', JSON.parse(JSON.stringify(repoList.value)))
+    await window.electronStore.set('repos', JSON.parse(JSON.stringify(author.value)))
+    ElMessage.success(`成功添加 ${repoList.value.length} 个仓库`)
+  } catch (error) {
+    console.error('保存失败', error)
+    ElMessage.error('保存仓库信息失败')
+    return
+  }
+
+  // // 清空并关闭弹窗
+  // repoList.value = [{ name: '', path: '' }]
+  showRepoDialog.value = false
+}
 </script>
 
 <style scoped>
@@ -425,6 +536,27 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   position: relative;
   overflow: hidden;
   margin-top: 10px;
+}
+
+/* 圆形生成按钮样式 */
+.generate-btn-round {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  /* 关键：变成圆形 */
+  font-size: 24px;
+  /* 让图标更明显 */
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
 .generate-btn:hover:not(:disabled) {
@@ -637,6 +769,209 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: 8px;
   z-index: 1000;
   animation: toastSlideIn 0.3s ease;
+}
+
+/* 弹窗遮罩 */
+.dialog-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+/* 弹窗主体 */
+.dialog-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 25px 30px;
+  width: 400px;
+  max-width: 90vw;
+  max-height: 80vh;
+  /* 限制最大高度，避免超出屏幕 */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow-y: auto;
+  /* 超出时纵向滚动 */
+  -webkit-overflow-scrolling: touch;
+  /* 移动端滚动顺滑 */
+}
+
+/* 隐藏滚动条 - Webkit 浏览器 */
+.dialog-card::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* 隐藏滚动条 - Firefox */
+.dialog-card {
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+/* 隐藏滚动条 - IE 和 Edge */
+.dialog-card {
+  -ms-overflow-style: none;
+  /* IE 10+ */
+}
+
+/* 弹窗头部 */
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.dialog-header h3 {
+  font-weight: 700;
+  color: #333;
+  font-size: 1.3rem;
+}
+
+.close-btn {
+  font-size: 1.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #999;
+  transition: color 0.3s ease;
+}
+
+.close-btn:hover {
+  color: #667eea;
+}
+
+/* 表单样式 */
+.dialog-form label {
+  display: block;
+  margin-bottom: 18px;
+  font-weight: 600;
+  color: #555;
+  font-size: 1rem;
+}
+
+.dialog-form input[type="text"] {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+
+.dialog-form input[type="text"]:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 5px rgba(102, 126, 234, 0.4);
+}
+
+/* 按钮区域 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 10px 24px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.5);
+}
+
+.btn-secondary {
+  background: #f8f9fa;
+  border: 2px solid #e1e5e9;
+  color: #666;
+  padding: 10px 24px;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: box-shadow 0.3s ease;
+}
+
+.btn-secondary:hover {
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 淡入淡出动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 追加弹窗内多条目相关样式 */
+.repo-item {
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.repo-item label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.inline-remove-btn {
+  position: static;
+  margin-left: 12px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  vertical-align: middle;
+  cursor: pointer;
+  user-select: none;
+  /* 加上过渡 */
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.inline-remove-btn:hover {
+  background-color: #e0e0e0;
+  color: #333;
+}
+
+/* 给名称 label 里内容水平排布 */
+.repo-name-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 18px;
+  font-size: 1rem;
+}
+
+.repo-name-label input[type="text"] {
+  flex-grow: 1;
+}
+
+.add-btn {
+  width: 100%;
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 /* 动画 */

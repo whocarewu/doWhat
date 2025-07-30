@@ -2,7 +2,9 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const simpleGit = require('simple-git');
-
+const StoreModule = require('electron-store');
+const Store = StoreModule.default || StoreModule;
+const store = new Store();
 function createWindow() {
   const win = new BrowserWindow({
     width: 1000,
@@ -16,6 +18,8 @@ function createWindow() {
 
   // 开发环境加载 vite 开发服务器地址
   win.loadURL('http://localhost:5213');
+  // ✅ 自动打开开发者工具
+  win.webContents.openDevTools(); // 可以加 { mode: 'detach' } 参数让它浮动显示
 }
 
 app.whenReady().then(createWindow);
@@ -25,12 +29,8 @@ app.on('window-all-closed', () => {
 });
 
 // ==== 可配置：你的 Git 仓库路径们 ====
-const repoPaths = [
-  { name: 'orderBase-order-service', path: 'D:/GSXM/HouDuan/OrderBase/order-service' },
-  { name: 'orderBase-platform-system', path: 'D:/GSXM/HouDuan/OrderBase/platform-system' },
-];
 // 封装 Git 日志函数
-async function getGitLogs({ author, since, until }) {
+async function getGitLogs({ author, since, until, repoPaths }) {
   const options = {
     '--author': author || undefined,
     '--since': since || undefined,
@@ -62,4 +62,18 @@ async function getGitLogs({ author, since, until }) {
 // 监听前端调用
 ipcMain.handle('git:getLogs', async (_, queryParams) => {
   return await getGitLogs(queryParams);
+});
+// 监听渲染进程请求
+ipcMain.handle('store-get', (event, key) => {
+  return store.get(key);
+});
+
+ipcMain.handle('store-set', (event, key, value) => {
+  store.set(key, value);
+  return true;
+});
+
+ipcMain.handle('store-delete', (event, key) => {
+  store.delete(key);
+  return true;
 });
