@@ -85,7 +85,7 @@ cd doWhat
 ### 2. 安装依赖
 
 ```bash
-npm install
+yarn install
 ```
 
 ### 3. 启动开发环境
@@ -93,13 +93,13 @@ npm install
 - **启动前端开发服务器：**
 
 ```bash
-npm run dev
+yarn run dev
 ```
 
 - **启动 Electron 应用（开发模式）：**
 
 ```bash
-npm run electron:dev
+yarn run electron:dev
 ```
 
 > 该命令会并行启动前端开发服务器和 Electron，方便调试。
@@ -107,8 +107,9 @@ npm run electron:dev
 ### 4. 生成生产包（可选）
 
 ```bash
-npm run build
+yarn  build
 # 然后根据你的打包配置启动 Electron
+yarn build:electron 
 ```
 
 ---
@@ -139,7 +140,6 @@ const logs = await window.electronAPI.getGitLogs({
 - [x] 基础日报生成功能  
 - [x] 多仓库 Git 日志支持  
 - [x] Electron 主进程安全桥接 IPC  
-- [ ] 多部门切换与管理  
 - [ ] PDF 导出功能  
 - [ ] 图表可视化工作量分布  
 - [ ] AI 自动总结增强  
