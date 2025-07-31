@@ -250,6 +250,7 @@ const generateReport = async () => {
   // 参数校验
   if (!author.value || !repoList.value.length) {
     ElMessage.warning('未配置基础数据，请填写作者信息并添加至少一个仓库');
+    isLoading.value = false;
     return;
   }
   const sinceDate = moment(reportDate.value).startOf('day').format('YYYY-MM-DD HH:mm:ss');
