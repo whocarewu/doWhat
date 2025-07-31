@@ -131,7 +131,7 @@ const logs = await window.electronAPI.getGitLogs({
 ## 📸 截图预览
 
 *此处插入项目界面截图，突出日报生成和 Electron 桌面窗口效果*
-
+![alt text](image.png)
 ---
 
 ## 📌 TODO
