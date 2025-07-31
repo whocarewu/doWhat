@@ -354,6 +354,8 @@ const addNewRepo = () => {
 // 删除指定索引仓库项
 const removeRepo = (index: number) => {
   repoList.value.splice(index, 1)
+  //更新仓库列表
+  window.electronStore.set('repos', JSON.parse(JSON.stringify(repoList.value)))
 }
 
 // 提交所有仓库
