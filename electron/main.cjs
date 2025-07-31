@@ -11,21 +11,21 @@ function createWindow() {
     width: 1000,
     height: 700,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'), // 这里一定要指向 preload.js 的绝对路径
-      contextIsolation: true,    // 一般必须开启，提高安全性
-      nodeIntegration: false     // 关闭渲染进程直接访问 Node，安全策略
+      preload: path.join(__dirname, 'preload.cjs'), // 这里一定要指向 preload.js 的绝对路径
+      contextIsolation: true,  // ✅ 必须开启！ 
+      nodeIntegration: false,     // 关闭渲染进程直接访问 Node，安全策略
     }
   });
 
   // 开发环境加载 vite 开发服务器地址
   if (isDev) {
+    console.log('isDev', isDev);
     win.loadURL('http://localhost:5213');
     win.webContents.openDevTools();
   } else {
+    console.log('生产环境');
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
-  // ✅ 自动打开开发者工具
-  // win.webContents.openDevTools(); // 可以加 { mode: 'detach' } 参数让它浮动显示
 }
 
 app.whenReady().then(createWindow);

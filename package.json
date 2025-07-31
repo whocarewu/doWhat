@@ -6,29 +6,34 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "vite:build": "vite build",  
-    "build": "electron-builder",
+    "build": "vite build",
     "preview": "vite preview",
-    "electron": "electron electron/main.cjs",
-    "electron:dev": "concurrently \"yarn dev\" \"wait-on http://localhost:5213 && yarn electron\""
+    "electron": "electron .",
+    "electron:dev": "concurrently \"npm run dev\" \"npm run electron\"",
+    "build:electron": "electron-builder",
+    "start": "electron ."
   },
   "build": {
     "appId": "com.whocarewu.DoWhat",
     "productName": "DoWhat",
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
     "win": {
       "target": [
-        "nsis" 
+        "nsis"
       ],
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "oneClick": false, 
+      "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true 
+      "allowToChangeInstallationDirectory": true
     },
     "directories": {
       "buildResources": "build",
-      "output": "dist" 
+      "output": "dist"
     }
   },
   "dependencies": {

@@ -85,12 +85,15 @@
           <div class="report-body">
             <div class="report-section">
               <h3><i class="fas fa-tasks"></i> 今日完成工作</h3>
-              <ul>
+              <ul v-if="currentReport.completed.length">
                 <li v-for="(task, index) in currentReport.completed" :key="index"
                   :style="{ animationDelay: `${index * 0.1}s` }" class="fade-in-item">
                   {{ task }}
                 </li>
               </ul>
+              <div v-else class="empty-state">
+                <p>暂无完成的任务，摸会鱼吧 🐟</p>
+              </div>
             </div>
           </div>
 
@@ -141,7 +144,7 @@
 
               <label>
                 路径
-                <input type="text" v-model="repo.path" placeholder="如：D:/Code/xx-xx" required />
+                <input type="text" v-model="repo.path" placeholder="如：D:\Code\xx-xx .git文件夹层级" required />
               </label>
 
               <hr v-if="index !== repoList.length - 1" />
@@ -174,21 +177,23 @@ import axios from 'axios';
 // 生命周期
 onMounted(async () => {
   // 设置默认日期为今天
-  const today = new Date().toISOString().split('T')[0]
-  reportDate.value = today
+  const today = new Date().toISOString().split('T')[0];
+  reportDate.value = today;
+
+  console.log('📅 当前日期设定为:', today);
+
   try {
     const reposRaw = await window.electronStore.get('repos');
     const authorRaw = await window.electronStore.get('author');
-
-    // electron-store 自动帮你序列化和反序列化，直接用就好
     repoList.value = Array.isArray(reposRaw) ? reposRaw : [{ name: '', path: '' }];
     author.value = typeof authorRaw === 'string' ? authorRaw : '';
-
+    if (repoList.value.length === 0 || !author.value) {
+      console.warn('⚠️ 基础信息不完整，请检查是否已保存');
+    }
   } catch (e) {
-    console.error('读取本地缓存失败:', e);
     ElMessage.info('未配置基础数据');
   }
-})
+});
 
 // 响应式数据
 const reportDate = ref('')
@@ -242,6 +247,11 @@ const formattedDate = computed(() => {
 const generateReport = async () => {
   isLoading.value = true;
   showUpdateHint.value = false;
+  // 参数校验
+  if (!author.value || !repoList.value.length) {
+    ElMessage.warning('未配置基础数据，请填写作者信息并添加至少一个仓库');
+    return;
+  }
   const sinceDate = moment(reportDate.value).startOf('day').format('YYYY-MM-DD HH:mm:ss');
   const untilDate = moment(reportDate.value).add(1, 'day').startOf('day').format('YYYY-MM-DD HH:mm:ss');
   const plainRepoList = JSON.parse(JSON.stringify(repoList.value));
@@ -361,8 +371,8 @@ const addRepos = async () => {
   }))
   // 保存到本地缓存（Electron Store）
   try {
-    await window.electronStore.set('repos', JSON.parse(JSON.stringify(repoList.value)))
-    await window.electronStore.set('repos', JSON.parse(JSON.stringify(author.value)))
+    await window.electronStore.set('repos', JSON.parse(JSON.stringify(normalizedRepos)))
+    await window.electronStore.set('author', JSON.parse(JSON.stringify(author.value)))
     ElMessage.success(`成功添加 ${repoList.value.length} 个仓库`)
   } catch (error) {
     console.error('保存失败', error)
