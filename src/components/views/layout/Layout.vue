@@ -7,7 +7,7 @@
           <button class="window-button minimize-window" aria-label="最小化窗口" title="最小化" @click="minimizeWindow"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.7 6h6.6" /></svg></button>
           <button class="window-button maximize-window" :aria-label="isMaximized ? '还原窗口' : '最大化窗口'" :title="isMaximized ? '还原' : '最大化'" @click="toggleMaximizeWindow"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 5V3h2M9 7v2H7M3 3l2.2 2.2M9 9L6.8 6.8" /></svg></button>
         </div>
-        <div class="brand"><span class="brand-mark">✳</span><span>DoWhat</span></div>
+        <div class="brand"><img class="brand-icon" :src="appIcon" alt=""><span>DoWhat</span></div>
       </div>
       <span class="local-note">你的工作记录，留在本地</span>
     </header>
@@ -57,6 +57,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import DatePicker from '@/components/DatePicker.vue'
 import { dateRange, localDate, organizeLogs, reportText } from '@/utils/report.js'
 
+const appIcon = `${import.meta.env.BASE_URL}app-icon.png`
 const types = [{ value: 'daily', label: '日报' }, { value: 'weekly', label: '周报' }, { value: 'monthly', label: '月报' }]
 const windowControlsAvailable = Boolean(window.api?.minimizeWindow)
 const isMaximized = ref(false)

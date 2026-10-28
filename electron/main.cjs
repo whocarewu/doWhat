@@ -10,6 +10,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1360, height: 880, minWidth: 900, minHeight: 640,
     frame: false, backgroundColor: '#fafbfe', title: 'DoWhat',
+    icon: path.join(__dirname, app.isPackaged ? '../dist/app-icon.png' : '../public/app-icon.png'),
     webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false }
   });
   win.on('maximize', () => win.webContents.send('window:maximized', true));
