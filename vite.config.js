@@ -2,13 +2,11 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import UnoCSS from 'unocss/vite'
 // https://vitejs.dev/config/
 export default defineConfig({
   base: './',
   plugins: [
     vue(),
-    UnoCSS({ hmrTopLevelAwait: false }),
   ],
   resolve: {
     alias: {
@@ -17,6 +15,7 @@ export default defineConfig({
   },
   server: {
     port: 5213,
+    strictPort: true,
     proxy: {
       '/api': {//代理
         target: 'http://localhost:8081',//后台服务所在的源

@@ -1,15 +1,30 @@
-export { }; // 确保这是一个模块，避免全局污染
+export {};
 
 declare global {
   interface Window {
     api: {
-      getGitLogs: (params: { author?: string; since?: string; until?: string; repoPaths?: String }) => Promise<any[]>;
-      // 如果你后续有更多api，可以继续在这里声明
-    }
+      platform: string;
+      getGitLogs(params: { author?: string; since: string; until: string; repoPaths: { name: string; path: string }[] }): Promise<{
+        logs: { hash: string; date: string; message: string; repo: string; repoPath: string }[];
+        errors: { repo: string; message: string }[];
+        users: { repo: string; name: string; email: string }[];
+      }>;
+      getGitUser(repoPath: string): Promise<{ name: string; email: string }>;
+      getRepoInfo(repoPath: string): Promise<{ name: string; path: string }>;
+      scanRepositories(rootPath: string): Promise<{ repos: { name: string; path: string }[]; skipped: number; truncated: boolean }>;
+      chooseRepo(): Promise<string[]>;
+      chooseScanFolder(): Promise<string | null>;
+      saveReport(params: { content: string; filename: string }): Promise<boolean>;
+      minimizeWindow(): Promise<void>;
+      toggleMaximizeWindow(): Promise<boolean>;
+      isWindowMaximized(): Promise<boolean>;
+      closeWindow(): Promise<void>;
+      onWindowMaximized(callback: (maximized: boolean) => void): () => void;
+    };
     electronStore: {
-      get: (key: string) => Promise<any>
-      set: (key: string, value: any) => Promise<void>
-      delete: (key: string) => Promise<void>
-    }
+      get(key: string): Promise<unknown>;
+      set(key: string, value: unknown): Promise<boolean>;
+      delete(key: string): Promise<boolean>;
+    };
   }
 }

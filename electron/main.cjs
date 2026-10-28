@@ -1,85 +1,57 @@
-//electron/main.cjs
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const simpleGit = require('simple-git');
+const fs = require('fs/promises');
+const { getGitLogs, getGitUser, getRepoInfo, scanRepositories } = require('./git.cjs');
 const StoreModule = require('electron-store');
 const Store = StoreModule.default || StoreModule;
 const store = new Store();
-const isDev = !app.isPackaged;  // Electron 官方推荐的方式
+
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1000,
-    height: 700,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'), // 这里一定要指向 preload.js 的绝对路径
-      contextIsolation: true,  // ✅ 必须开启！ 
-      nodeIntegration: false,     // 关闭渲染进程直接访问 Node，安全策略
-    }
+    width: 1360, height: 880, minWidth: 900, minHeight: 640,
+    frame: false, backgroundColor: '#fafbfe', title: 'DoWhat',
+    webPreferences: { preload: path.join(__dirname, 'preload.cjs'), contextIsolation: true, nodeIntegration: false }
   });
-
-  // 开发环境加载 vite 开发服务器地址
-  if (isDev) {
-    console.log('isDev', isDev);
-    win.loadURL('http://localhost:5213');
-    win.webContents.openDevTools();
-  } else {
-    console.log('生产环境');
-    win.loadFile(path.join(__dirname, '../dist/index.html'));
-  }
+  win.on('maximize', () => win.webContents.send('window:maximized', true));
+  win.on('unmaximize', () => win.webContents.send('window:maximized', false));
+  if (!app.isPackaged) win.loadURL('http://localhost:5213');
+  else win.loadFile(path.join(__dirname, '../dist/index.html'));
 }
 
 app.whenReady().then(createWindow);
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+ipcMain.handle('git:getLogs', (_, params) => getGitLogs(params));
+ipcMain.handle('git:getUser', (_, repoPath) => getGitUser(repoPath));
+ipcMain.handle('git:getRepoInfo', (_, repoPath) => getRepoInfo(repoPath));
+ipcMain.handle('git:scanRepositories', (_, rootPath) => scanRepositories(rootPath));
+ipcMain.handle('window:minimize', event => BrowserWindow.fromWebContents(event.sender)?.minimize());
+ipcMain.handle('window:toggleMaximize', event => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return false;
+  if (win.isMaximized()) win.unmaximize(); else win.maximize();
+  return win.isMaximized();
 });
+ipcMain.handle('window:isMaximized', event => BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false);
+ipcMain.handle('window:close', event => BrowserWindow.fromWebContents(event.sender)?.close());
 
-// ==== 可配置：你的 Git 仓库路径们 ====
-// 封装 Git 日志函数
-async function getGitLogs({ author, since, until, repoPaths }) {
-  const options = {
-    '--author': author || undefined,
-    '--since': since || undefined,
-    '--until': until || undefined,
-    n: 100,
-  };
-  const filteredOptions = Object.fromEntries(Object.entries(options).filter(([_, v]) => v));
-
-  const allLogs = [];
-
-  for (const repo of repoPaths) {
-    const git = simpleGit(path.resolve(repo.path));
-    try {
-      const log = await git.log(filteredOptions);
-      const logsWithSource = log.all.map(item => ({
-        ...item,
-        repo: repo.name
-      }));
-      allLogs.push(...logsWithSource);
-    } catch (err) {
-      console.warn(`仓库 ${repo.name} 获取日志失败：`, err.message);
-    }
-  }
-
-  // 排序
-  return allLogs.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-}
-
-// 监听前端调用
-ipcMain.handle('git:getLogs', async (_, queryParams) => {
-  return await getGitLogs(queryParams);
+ipcMain.handle('dialog:chooseRepo', async event => {
+  const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), { title: '选择 Git 仓库（可多选）', properties: ['openDirectory', 'multiSelections'] });
+  return result.canceled ? [] : result.filePaths;
 });
-// 监听渲染进程请求
-ipcMain.handle('store-get', (event, key) => {
-  return store.get(key);
+ipcMain.handle('dialog:chooseScanFolder', async event => {
+  const result = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), { title: '选择存放项目的文件夹', properties: ['openDirectory'] });
+  return result.canceled ? null : result.filePaths[0];
 });
-
-ipcMain.handle('store-set', (event, key, value) => {
-  store.set(key, value);
+ipcMain.handle('dialog:saveReport', async (event, { content, filename }) => {
+  const result = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
+    defaultPath: filename, filters: [{ name: 'Markdown', extensions: ['md'] }, { name: 'Text', extensions: ['txt'] }]
+  });
+  if (result.canceled || !result.filePath) return false;
+  await fs.writeFile(result.filePath, content, 'utf8');
   return true;
 });
-
-ipcMain.handle('store-delete', (event, key) => {
-  store.delete(key);
-  return true;
-});
+ipcMain.handle('store-get', (_, key) => store.get(key));
+ipcMain.handle('store-set', (_, key, value) => { store.set(key, value); return true; });
+ipcMain.handle('store-delete', (_, key) => { store.delete(key); return true; });
